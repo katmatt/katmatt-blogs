@@ -1,0 +1,4 @@
+baseURL = "http://example.org/"
+languageCode = "en-us"
+title = "katmatt blogs"
+theme = "hugo-kiera"
