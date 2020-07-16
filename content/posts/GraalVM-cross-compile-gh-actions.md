@@ -1,10 +1,14 @@
 ---
-title: "GraalVM/nativeimage cross compilation with github Actions"
+title: "GraalVM/native-image cross-compilation with github Actions"
 date: 2020-07-15T15:35:10+02:00
 draft: true
 ---
 
-GraalVM (https://www.graalvm.org/) allows to compile Java programs into native code with the `native-image` executable. This gives Java developers new options, because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling a program to target architectures different from the host system. And one limitation of `native-image` is that it doesn't support cross-compilation out of the box (see open issue: [native-image: Cross compilation support?](https://github.com/oracle/graal/issues/407)). That means that you have to run `native-image` on all platforms that your Java program should support. And I will show you in this article how you can automate this tedious task with github actions.
+GraalVM (https://www.graalvm.org/) allows to compile Java programs into native code with the `native-image` executable. This gives Java developers new options, because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling programs/libraries to target architectures different from the host system. 
+
+But one limitation of `native-image` is that it doesn't support cross-compilation out of the box (see open issue: [native-image: Cross compilation support?](https://github.com/oracle/graal/issues/407)). That means that you have to run `native-image` on all platforms that your Java program should support. 
+
+This article will show you how you can use github actions to simplify this task by automating it. Then the only thing you have to do to trigger the release of native excutables of your program is to tag your release and push that tag to github.
 
 ## Setup your gradle build 
 
