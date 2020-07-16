@@ -1,3 +1,7 @@
 [submodule "themes/hugo-kiera"]
 	path = themes/hugo-kiera
 	url = https://github.com/funkydan2/hugo-kiera.git
+[submodule "public"]
+	path = public
+	url = https://github.com/katmatt/katmatt.github.io.git
+	branch = master
