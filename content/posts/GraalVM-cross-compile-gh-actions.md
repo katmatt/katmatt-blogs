@@ -27,6 +27,7 @@ graal {
     graalVersion '20.0.0'
     outputName 'cross-compile-demo'
     mainClass 'com.maschinenstuermer.crosscompile.demo.App'
+    javaVersion '11'
 }
 ```
 
@@ -87,10 +88,10 @@ We now add jobs for each supported operating system, which depends on our *creat
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Set up JDK 1.8
+    - name: Set up JDK 11
       uses: actions/setup-java@v1
       with:
-        java-version: 1.8
+        java-version: 11
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build native image with Gradle
@@ -107,6 +108,14 @@ We now add jobs for each supported operating system, which depends on our *creat
 ``` 
 And this job references the *upload_url* output from our *create-release* job with the `${{ needs.create-release.outputs.upload_url }}` expression.
 You can see the full workflow file here: [perform-release.yml](https://github.com/katmatt/cross-compile-gh-actions/blob/master/.github/workflows/perform-release.yml)
+
+
+### Issues with the build on windows
+
+I initially started with the default java 8 version for the graal build. But I couldn't get this to run on windows because it required the installation of some additional build tools and I wasn't able to set them up correctly. But when I switched to Java 11 then everything worked as smoothly as I hoped for! 
+And you still can see my attempts fixing this issue in the commit history: [commit history](https://github.com/katmatt/cross-compile-gh-actions/commits/master)
+
+Another unexpected finding was that the workflow can perform the unix command *chmod* on windows machines! I guess the github windows images are configured with the windows subsystem for linux (WSL) and this makes it possible to *chmod*. 
 
 ## Conclusion
 
