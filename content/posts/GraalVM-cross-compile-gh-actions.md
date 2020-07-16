@@ -12,7 +12,7 @@ This article will show you how you can use github actions to simplify this task 
 
 ## Setup your gradle build 
 
-In this article,  we will use the popular [gradle](https://gradle.org/) build tool together with the [Palantir GraalVM gradle plugin](https://github.com/palantir/gradle-graal). This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin and central and this makes it very easy to integrate it into our *gradle.build* file:
+In this article,  we will use the popular [gradle](https://gradle.org/) build tool together with the [Palantir GraalVM gradle plugin](https://github.com/palantir/gradle-graal). This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin central and this makes it very easy to integrate it into our *gradle.build* file:
 
 ``` gradle
 plugins {
@@ -32,7 +32,7 @@ graal {
 
 ## Build your first native executable
 
-After this setup, building your first native executable is as simple as running `./gradlew nativeImage`. This will download the graal toolchain to your computer, execute *native-image* and generate the executable to `/build/graal/cross-compile-demo`.
+After this setup, building your first native executable is as simple as running `./gradlew nativeImage`. This will download the graal toolchain to your computer, execute *native-image* and generate the executable to *build/graal/cross-compile-demo*.
 
 Running this executable then outputs the classical:
 ```
@@ -49,7 +49,7 @@ task zipExecutable(type: Zip) {
     from "$buildDir/graal" 
 }
 ```
-With this additional task, we can now build and archive our executable by running `./gradlew zipExecutable`. This produces our zip file in the `build/dist` folder. You can see the full build file here: [build.gradle](https://github.com/katmatt/cross-compile-gh-actions/blob/master/build.gradle)
+With this additional task, we can now build and archive our executable by running `./gradlew zipExecutable`. This produces our zip file in the *build/dist* folder. You can see the full build file here: [build.gradle](https://github.com/katmatt/cross-compile-gh-actions/blob/master/build.gradle)
 
 ## Cross-compiling with Github Actions
 
@@ -60,7 +60,7 @@ on:
     tags:
     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 ```
-Our workflow then creates a github release for this tag with the following job definition and stores the `upload_url` variable as an output that our downstream jobs can use to upload their artifacts:
+Our workflow then creates a github release for this tag and stores the *upload_url* variable as an output that our downstream jobs can use to upload their artifacts with the following job definition :
 ``` yaml
 jobs:
   create-release:
@@ -80,7 +80,7 @@ jobs:
           draft: false
           prerelease: false
 ```
-We now add jobs for each supported operating system, which depends on our `create-release` job by setting the `needs:` facet to `create-release`. The following workflow defines the release build for linux:
+We now add jobs for each supported operating system, which depends on our *create-release* job by setting the *needs:* facet to *create-release*. The following workflow defines the release build for linux:
 ``` yaml
   perform-release-linux:
     needs: create-release
@@ -105,14 +105,14 @@ We now add jobs for each supported operating system, which depends on our `creat
         asset_name: cross-compile-demo_linux_amd64.zip
         asset_content_type: application/zip
 ``` 
-And this job references the `upload_url` output from our `create-release` job with the `${{ needs.create-release.outputs.upload_url }}` expression.
+And this job references the *upload_url* output from our *create-release* job with the `${{ needs.create-release.outputs.upload_url }}` expression.
 You can see the full workflow file here: [perform-release.yml](https://github.com/katmatt/cross-compile-gh-actions/blob/master/.github/workflows/perform-release.yml)
 
 ## Conclusion
 
 This article showed you how you can leverage github actions to cross-compile your Java program for different target architectures. The presented solution works with an easy setup. But it has a drawback too: Our workflow downloads the GraalVM distribution for each platform on each release. And releasing our simple demo program took already 5 minutes. 
 
-But if you compare this solution with running the cross-compilation manually - across several computers or virtual machines - and if your release frequency is daily or weekly, then this article provides a good enough solution. And our proposed solution could be further simplified by using matrix builds or by cahing the downloaded GraalVM distribution, so feel free to improve this solution further!
+But if you compare this solution with running the cross-compilation manually - across several computers or virtual machines - and if your release frequency is daily or weekly, then this article provides a good enough solution. Our proposed solution could be further improved by using matrix builds or by caching the downloaded GraalVM distribution, so feel free to improve this solution further!
 
 You can find the source code for this article here: https://github.com/katmatt/cross-compile-gh-actions
 
