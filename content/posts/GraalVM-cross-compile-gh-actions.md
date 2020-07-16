@@ -1,25 +1,25 @@
 ---
 title: "GraalVM/native-image cross-compilation with github Actions"
 date: 2020-07-15T15:35:10+02:00
-draft: true
+draft: false
 ---
 
-GraalVM (https://www.graalvm.org/) allows to compile Java programs into native code with the `native-image` executable. This gives Java developers new options, because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling programs/libraries to target architectures different from the host system. 
+GraalVM (https://www.graalvm.org/) allows to compile Java programs into native code with the *native-image* executable. This gives Java developers new options because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling programs/libraries to target architectures different from the host system. 
 
-But one limitation of `native-image` is that it doesn't support cross-compilation out of the box (see open issue: [native-image: Cross compilation support?](https://github.com/oracle/graal/issues/407)). That means that you have to run `native-image` on all platforms that your Java program should support. 
+But one limitation of *native-image* is that it doesn't support cross-compilation out of the box (see open issue: [native-image: Cross compilation support?](https://github.com/oracle/graal/issues/407)). That means that you have to run *native-image* on all platforms that your Java program should support. 
 
 This article will show you how you can use github actions to simplify this task by automating it. Then the only thing you have to do to trigger the release of native excutables of your program is to tag your release and push that tag to github.
 
 ## Setup your gradle build 
 
-In this article,  we will use the popular [gradle](https://gradle.org/) build tool together with the [Palantir GraalVM gradle plugin](https://github.com/palantir/gradle-graal). This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin and central and this makes it very easy to integrate it into our `gradle.build` file:
+In this article,  we will use the popular [gradle](https://gradle.org/) build tool together with the [Palantir GraalVM gradle plugin](https://github.com/palantir/gradle-graal). This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin and central and this makes it very easy to integrate it into our *gradle.build* file:
 
 ``` gradle
 plugins {
     id 'com.palantir.graal' version '0.7.1'
 }
 ```
-Then you can add the following entries to your modules `build.gradle` to configure the `nativeImage` gradle task:
+Then you can add the following entries to your modules *build.gradle* to configure the *nativeImage* gradle task:
 ``` gradle
 apply plugin: 'com.palantir.graal'
 
@@ -32,13 +32,13 @@ graal {
 
 ## Build your first native executable
 
-After this setup, building your first native executable is as simple as running `./gradlew nativeImage`. This will download the graal toolchain to your computer, execute the `native-image` compiler and then generate the executable to `/build/graal/cross-compile-demo`.
+After this setup, building your first native executable is as simple as running `./gradlew nativeImage`. This will download the graal toolchain to your computer, execute *native-image* and generate the executable to `/build/graal/cross-compile-demo`.
 
 Running this executable then outputs the classical:
 ```
 Hello world.
 ```
-The next step is to archive the executable into a zip file, which we later will upload to the github release. We do this by adding the following task to our `build.gradle` file:
+The next step is to archive the executable into a zip file, which we later will upload to the github release. We do this by adding the following task to our *build.gradle* file:
 ``` gradle
 task zipExecutable(type: Zip) {
     dependsOn 'nativeImage'
@@ -60,7 +60,7 @@ on:
     tags:
     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 ```
-Our workflow then creates a github release for this tag with the following job definition and stores the `upload_url` as an output that our downstream jobs can use to upload their artifacts:
+Our workflow then creates a github release for this tag with the following job definition and stores the `upload_url` variable as an output that our downstream jobs can use to upload their artifacts:
 ``` yaml
 jobs:
   create-release:
