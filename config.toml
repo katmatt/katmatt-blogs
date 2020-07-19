@@ -1,4 +1,4 @@
-baseURL = "http://katmatt.github.io/"
+baseURL = "https://katmatt.github.io/"
 languageCode = "en-us"
 title = "katmatt blogs"
 theme = "hugo-kiera"
