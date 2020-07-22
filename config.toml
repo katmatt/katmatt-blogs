@@ -2,3 +2,9 @@ baseURL = "https://katmatt.github.io/"
 languageCode = "en-us"
 title = "katmatt blogs"
 theme = "hugo-kiera"
+
+[author]
+    name = "Matthias Köster"
+    github = "katmatt"
+    linkedin = "matthias-köster-12159636"
+    twitter = "matthiaskoester"
