@@ -211,13 +211,13 @@ function draw(ctx, game) {
     const startX = BOARD_WIDTH * TILE_WIDTH + 18 + width / 2;
     for (let i = 0; i < rows; i++) {
         for (let counter = 0; counter < 10; counter++) {
-            const alpha = counter % 5 === 0 ? 0.5 : 0.67;
+            const alpha = counter % 5 === 0 ? 0.67 : 0.5;
             ctx.fillStyle = `rgba(32, 16, 16, ${alpha})`;
             ctx.fillRect(startX + counter * (width + width / 2), startY - (height + height / 2) * i, width, height);
         }
     }
     for (let counter = 0; counter < remainder; counter++) {
-        const alpha = counter % 5 === 0 ? 0.5 : 0.67;
+        const alpha = counter % 5 === 0 ? 0.67 : 0.5;
         ctx.fillStyle = `rgba(32, 16, 16, ${alpha})`;
         ctx.fillRect(startX + counter * (width + width / 2), startY - (height + height / 2) * rows, width, height);
     }
@@ -379,17 +379,17 @@ function initGame() {
                 if (!isBeyond(boardPosition)) {
                     switch (matches.length) {
                         case 1:
-                            game.score += 1;
+                            game.score += 1 * 2 ** game.fourWays;
                             break;
                         case 2:
-                            game.score += 2;
+                            game.score += 2 * 2 ** game.fourWays;
                             break;
                         case 3:
-                            game.score += 4;
+                            game.score += 4 * 2 ** game.fourWays;
                             break;
                         case 4:
-                            game.score += 8;
                             game.fourWays += 1;
+                            game.score += 8 * 2 ** game.fourWays;
                             const fourwayBonus = fourwayBonuses[game.fourWays - 1];
                             if (fourwayBonus) {
                                 game.score += fourwayBonus;
