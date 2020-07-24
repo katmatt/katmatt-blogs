@@ -228,7 +228,7 @@ function draw(ctx: CanvasRenderingContext2D, game: Game) {
 ```
 This function provides type-safe access to the *Stone* properties because the typescript compiler can infer the correct type based on the *switch* statement. This makes it quite easy to write this function.
 
-But the *drawBoard* function is a bit more complicated because the background tiles are initialized with random numbers to give the board more variation. And the game also provides a hint feature, which highlights the valid positions on the board with background tiles highlighted with a red tint.
+But the *draw* function is a bit more complicated because the background tiles are initialized with random numbers to give the board more variation. And the game also provides a hint feature, which highlights the valid positions on the board with background tiles highlighted with a red tint.
 
 ## Conclusion
 
