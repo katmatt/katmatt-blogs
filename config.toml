@@ -2,6 +2,7 @@ baseURL = "https://katmatt.github.io/"
 languageCode = "en-us"
 title = "katmatt blogs"
 theme = "hugo-kiera"
+pygmentsCodeFences = true
 
 [author]
     name = "Matthias Köster"
