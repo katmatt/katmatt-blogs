@@ -9,3 +9,7 @@ pygmentsCodeFences = true
     github = "katmatt"
     linkedin = "matthias-köster-12159636"
     twitter = "matthiaskoester"
+
+[params]
+    UtterancesRepo = "katmatt/katmatt-blogs"
+    UtterancesIssueTerm = "pathname"
