@@ -13,3 +13,8 @@ pygmentsCodeFences = true
 [params]
     UtterancesRepo = "katmatt/katmatt-blogs"
     UtterancesIssueTerm = "pathname"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
