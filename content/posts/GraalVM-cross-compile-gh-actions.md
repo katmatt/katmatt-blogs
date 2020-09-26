@@ -1,8 +1,9 @@
 ---
-title: "GraalVM/native-image cross-compilation with github Actions"
+title: GraalVM/native-image cross-compilation with github Actions
 date: 2020-07-15T15:35:10+02:00
 categories: [continuous integration]
 tags: [java,graal,native-image,cross-compilation,github actions]
+description: GraalVM native-image cross-compilation with github Actions
 draft: false
 ---
 

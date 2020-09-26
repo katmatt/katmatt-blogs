@@ -1,9 +1,11 @@
 ---
-title: "HTML 5 based board game with TypeScript"
+title: HTML 5 based board game with TypeScript
 date: 2020-07-23T14:04:10+02:00
+description: 
 categories: [programming]
 tags: [typescript, game-programming, 2d-graphics, frontend]
 draft: false
+description: HTML 5 based board game with TypeScript
 ---
 
 A long, long time ago (to be precise: in the year 2000 AD) I wrote a C++/KDE version of the boardgame [Ishido](https://en.wikipedia.org/wiki/Ishido:_The_Way_of_Stones) and you can still find my website for this game conserved at the wayback machine: [kishido](https://web.archive.org/web/20000917222625/http://www.informatik.uni-oldenburg.de/~km/kishido/) 
