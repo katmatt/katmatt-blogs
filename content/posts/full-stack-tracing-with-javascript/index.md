@@ -19,14 +19,14 @@ Distributed tracing allows tracing of the actual calls between components of a d
 
 ![Distributed System](distributed-system.svg)
 
-The most popular architectural style for distributed systems are microservices and the philosophy behind this style is to break the whole system down into more and smaller services that communicate with each other. This architecture has a lot of advantages, but has of course disadvantages too. One disadvantage is that the increased number of involved services make it much harder to analyze issues. Especially performance issues are very difficult to analyze in such a highly distributed system. And a system diagram like the above only represents the static connection between the services, but doesn't show how often the services calls other services or how long each request takes.
+The most popular architectural style for distributed systems are microservices and the philosophy behind this style is to break the whole system down into more and smaller services that communicate with each other. This architecture has a lot of advantages, but has of course disadvantages too. One disadvantage is that the increased number of involved services makes it much harder to analyze issues. Especially performance issues are very difficult to analyze in such a highly distributed system. And a system diagram like the above only represents the static connection between the services, but doesn't show how often the services call other services or how long each request takes.
 
 And that's where distributed tracing can help. It allows you to view all requests that were sent between the different services and it also provides additional information like the execution time of a single request. And each request can be further traced to the requests that it sent to other services.
 
 # How does it work?
 
 
-The most influential paper on distributed tracing was released in 2010 by google researchers: [Dapper, a Large-Scale Distributed Systems Tracing Infrastructure](https://research.google/pubs/pub36356/). And most distributed systems follow the ideas presented in this paper, which introduced and formalized the concept of a trace which consists of spans.
+The most influential paper on distributed tracing was released in 2010 by google researchers: [Dapper, a Large-Scale Distributed Systems Tracing Infrastructure](https://research.google/pubs/pub36356/). And most distributed tracing systems follow the ideas presented in this paper, which introduced and formalized the concept of a trace which consists of spans.
 
 A trace consists of a root span, which represents the initial call. And any request sent to another service is captured by a child span. A span captures the start and end times for the request. An instrumented program can programmatically add additional attributes to a span. These attributes are simple key-value maps. Additional events - like internal calls - can be recorded too and these events support attributes too.
 
@@ -61,11 +61,11 @@ And there are other open-source trace collector systems like the CNCF project [J
 
 # The example system
 
-My example system contains of a *web-ui* that allows to add or subtract values that the user can enter in an html form, an *api-gateway* that forwards the requests. The *api-gateway* forwards the calculation depending on the selected operator either to the *add-service* or to the *subtract-service*. The *web-ui* is instrumented with the *opentelemetry-web* agent and the server nodes are instrumented with the *opentelemetry-node* agent. The trace data is exported from each node with the zipkin exporter and the data is forwarded to a zipkin server. The zipkin server acts as a trace collector and additionally provides a web ui to browse the collected traces. Everything is running in a docker network setup with a docker-compose file. The following diagram shows how the example system is setup:
+My example system consists of a *web-ui* that allows to add or subtract values that the user can enter in an html form and an *api-gateway* that forwards the requests. The *api-gateway* forwards the calculation depending on the selected operator either to the *add-service* or to the *subtract-service*. The *web-ui* is instrumented with the *opentelemetry-web* agent and the server nodes are instrumented with the *opentelemetry-node* agent. The trace data is exported from each node with the zipkin exporter and the data is forwarded to a zipkin server. The zipkin server acts as a trace collector and additionally provides a web ui to browse the collected traces. Everything is running in a docker network setup with a docker-compose file. The following diagram shows how the example system is setup:
 
 ![Distributed tracing example system](example-system.svg)
 
-The example can be found at [katmatt/microcalc-javascript-node](https://github.com/katmatt/microcalc-javascript-node). And a simple *docker-compose up* starts all services with one command. The *web-ui* can be found at [http://localhost:8090/]() and provides a link to open the zipkin UI. The following diagram shows an example screenshot of the zipkin UI showing an actual example trace:
+The example can be found at [katmatt/microcalc-javascript-node](https://github.com/katmatt/microcalc-javascript-node). And a simple *docker-compose up* starts all services with one command. The *web-ui* can be found at [http://localhost:8090/]() and provides a link to open the zipkin UI. The following image shows an example screenshot of the zipkin UI showing an actual example trace:
 
 ![zipkin UI showing an example trace](zipkin-ui.png)
 
