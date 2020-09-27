@@ -4,7 +4,7 @@ date: 2020-09-26T12:04:10+02:00
 description: Full-stack distributed tracing with JavaScript
 categories: [programming]
 tags: [javascript, distributed-tracing, microservices, opentelemetry]
-draft: true
+draft: false
 ---
 
 I'm currently reading the book [Distributed Tracing in Practice](https://www.oreilly.com/library/view/distributed-tracing-in/9781492056621/) and really like it. The book provides an example that you can find on the github repository [distributed-tracing-in-practice/microcalc](https://github.com/distributed-tracing-in-practice/microcalc). 
