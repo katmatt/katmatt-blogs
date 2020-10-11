@@ -5,4 +5,4 @@
 [submodule "public"]
 	path = public
 	url = https://github.com/katmatt/katmatt.github.io.git
-	branch = master
+	branch = gh-pages
