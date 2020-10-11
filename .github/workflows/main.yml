@@ -1,0 +1,20 @@
+name: Build blog
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      - name: Hugo setup
+        uses: peaceiris/actions-hugo@v2.4.13
+        with:
+          hugo-version: 0.68.3
+          extended: true
