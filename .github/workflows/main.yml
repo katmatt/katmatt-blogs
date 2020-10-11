@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-publish-blog:
     runs-on: ubuntu-latest
 
     steps:
