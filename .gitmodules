@@ -1,0 +1,8 @@
+[submodule "themes/hugo-kiera"]
+	path = themes/hugo-kiera
+	url = https://github.com/katmatt/hugo-kiera.git
+	branch = seo-changes
+[submodule "public"]
+	path = public
+	url = https://github.com/katmatt/katmatt.github.io.git
+	branch = master
