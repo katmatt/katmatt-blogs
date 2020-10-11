@@ -1,4 +1,4 @@
-name: Build blog
+name: Build and publish blog
 
 on:
   push:
@@ -20,5 +20,12 @@ jobs:
         with:
           hugo-version: 0.68.3
           extended: true
-      - name: Build blog
+      - name: Run hugo - build blog
         run: hugo --minify
+        env:
+          HUGO_GOOGLEANALYTICS: UA-173228040-1
+      - name: Deploy blog to github pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
