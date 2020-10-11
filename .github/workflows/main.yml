@@ -18,3 +18,5 @@ jobs:
         with:
           hugo-version: 0.68.3
           extended: true
+      - name: Build blog
+        run: hugo --minify
