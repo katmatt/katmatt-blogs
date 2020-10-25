@@ -1,0 +1,77 @@
+<!doctype html><html lang=en-us><head><title>GraalVM/native-image cross-compilation with github Actions</title><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=description content="GraalVM native-image cross-compilation with github Actions"><meta name=author content="Matthias Köster"><meta property="og:title" content="GraalVM/native-image cross-compilation with github Actions"><meta property="og:description" content="GraalVM native-image cross-compilation with github Actions"><meta property="og:type" content="article"><meta property="og:url" content="https://katmatt.github.io/posts/graalvm-cross-compile-gh-actions/"><meta property="article:published_time" content="2020-07-15T15:35:10+02:00"><meta property="article:modified_time" content="2020-07-15T15:35:10+02:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="GraalVM/native-image cross-compilation with github Actions"><meta name=twitter:description content="GraalVM native-image cross-compilation with github Actions"><meta name=generator content="Hugo 0.68.3"><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css integrity="sha256-l85OmPOjvil/SOvVt3HnSSjzF1TUMyT9eV0c2BzEGzU=" crossorigin=anonymous><link rel=stylesheet href=https://katmatt.github.io/fontawesome/css/all.min.css><link rel=stylesheet href="https://fonts.googleapis.com/css?family=Roboto+Slab|Ruda"><link rel=stylesheet type=text/css href=/css/styles.css></head><body><div id=container><header><h1><a href=/>katmatt blogs</a></h1><ul id=social-media><li><a href=https://github.com/katmatt title=GitHub><i class="fab fa-github fa-lg"></i></a></li><li><a href=https://twitter.com/matthiaskoester title=Twitter><i class="fab fa-twitter fa-lg"></i></a></li><li><a href=https://linkedin.com/in/matthias-k%c3%b6ster-12159636 title=LinkedIn><i class="fab fa-linkedin fa-lg"></i></a></li></ul></header><nav><ul></ul></nav><main><article><h1>GraalVM/native-image cross-compilation with github Actions</h1><aside><ul><li><time class=post-date datetime=2020-07-15T15:35:10+02:00>Jul 15, 2020</time></li><li>Categories:
+<em><a href=/categories/continuous-integration>continuous integration</a></em></li><li><em><a href=/tags/java>#java</a>
+,
+<a href=/tags/graal>#graal</a>
+,
+<a href=/tags/native-image>#native-image</a>
+,
+<a href=/tags/cross-compilation>#cross-compilation</a>
+,
+<a href=/tags/github-actions>#github actions</a></em></li><li>5 minutes read</li></ul></aside><p>GraalVM (<a href=https://www.graalvm.org/>https://www.graalvm.org/</a>) allows to compile Java programs into native code with the <em>native-image</em> executable. This gives Java developers new options because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling programs/libraries to target architectures different from the host system.</p><p>But one limitation of <em>native-image</em> is that it doesn&rsquo;t support cross-compilation out of the box (see open issue: <a href=https://github.com/oracle/graal/issues/407>native-image: Cross compilation support?</a>). That means that you have to run <em>native-image</em> on all platforms that your Java program should support.</p><p>This article will show you how you can use github actions to simplify this task by automating it. Then the only thing you have to do to trigger the release of native excutables of your program is to tag your release and push that tag to github.</p><h2 id=setup-your-gradle-build>Setup your gradle build</h2><p>In this article, we will use the popular <a href=https://gradle.org/>gradle</a> build tool together with the <a href=https://github.com/palantir/gradle-graal>Palantir GraalVM gradle plugin</a>. This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin central and this makes it very easy to integrate it into our <em>gradle.build</em> file:</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-gradle data-lang=gradle>plugins <span style=color:#f92672>{</span>
+    id <span style=color:#e6db74>&#39;com.palantir.graal&#39;</span> version <span style=color:#e6db74>&#39;0.7.1&#39;</span>
+<span style=color:#f92672>}</span>
+</code></pre></div><p>Then you can add the following entries to your modules <em>build.gradle</em> to configure the <em>nativeImage</em> gradle task:</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-gradle data-lang=gradle>apply plugin: <span style=color:#e6db74>&#39;com.palantir.graal&#39;</span>
+
+graal <span style=color:#f92672>{</span>
+    graalVersion <span style=color:#e6db74>&#39;20.0.0&#39;</span>
+    outputName <span style=color:#e6db74>&#39;cross-compile-demo&#39;</span>
+    mainClass <span style=color:#e6db74>&#39;com.maschinenstuermer.crosscompile.demo.App&#39;</span>
+    javaVersion <span style=color:#e6db74>&#39;11&#39;</span>
+<span style=color:#f92672>}</span>
+</code></pre></div><h2 id=build-your-first-native-executable>Build your first native executable</h2><p>After this setup, building your first native executable is as simple as running <code>./gradlew nativeImage</code>. This will download the graal toolchain to your computer, execute <em>native-image</em> and generate the executable to <em>build/graal/cross-compile-demo</em>.</p><p>Running this executable then outputs the classical:</p><pre><code>Hello world.
+</code></pre><p>The next step is to archive the executable into a zip file, which we later will upload to the github release. We do this by adding the following task to our <em>build.gradle</em> file:</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-gradle data-lang=gradle>task <span style=color:#a6e22e>zipExecutable</span><span style=color:#f92672>(</span>type: Zip<span style=color:#f92672>)</span> <span style=color:#f92672>{</span>
+    dependsOn <span style=color:#e6db74>&#39;nativeImage&#39;</span>
+    
+    archiveFileName <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;cross-compile-demo.zip&#34;</span>
+    destinationDirectory <span style=color:#f92672>=</span> file<span style=color:#f92672>(</span><span style=color:#e6db74>&#34;$buildDir/dist&#34;</span><span style=color:#f92672>)</span>
+
+    from <span style=color:#e6db74>&#34;$buildDir/graal&#34;</span> 
+<span style=color:#f92672>}</span>
+</code></pre></div><p>With this additional task, we can now build and archive our executable by running <code>./gradlew zipExecutable</code>. This produces our zip file in the <em>build/dist</em> folder. You can see the full build file here: <a href=https://github.com/katmatt/cross-compile-gh-actions/blob/master/build.gradle>build.gradle</a></p><h2 id=cross-compiling-with-github-actions>Cross-compiling with Github Actions</h2><p>Our release process is triggered when a user tags a release and pushes these tags to github. This is accomplished with the following trigger in our workflow file:</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=color:#66d9ef>on</span>:
+  <span style=color:#66d9ef>push</span>:
+    <span style=color:#66d9ef>tags</span>:
+    - <span style=color:#e6db74>&#39;v*&#39;</span> <span style=color:#75715e># Push events to matching v*, i.e. v1.0, v20.15.10</span>
+</code></pre></div><p>Our workflow then creates a github release for this tag and stores the <em>upload_url</em> variable as an output that our downstream jobs can use to upload their artifacts with the following job definition :</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml><span style=color:#66d9ef>jobs</span>:
+  <span style=color:#66d9ef>create-release</span>:
+    <span style=color:#66d9ef>runs-on</span>: ubuntu-latest
+    <span style=color:#66d9ef>outputs</span>:
+      <span style=color:#66d9ef>upload_url</span>: ${{ steps.create-release.outputs.upload_url }}
+    <span style=color:#66d9ef>steps</span>:
+      - <span style=color:#66d9ef>uses</span>: actions/checkout@v2
+      - <span style=color:#66d9ef>name</span>: Create Release
+        <span style=color:#66d9ef>id</span>: create-release
+        <span style=color:#66d9ef>uses</span>: actions/create-release@v1
+        <span style=color:#66d9ef>env</span>:
+          <span style=color:#66d9ef>GITHUB_TOKEN</span>: ${{ secrets.GITHUB_TOKEN }}
+        <span style=color:#66d9ef>with</span>:
+          <span style=color:#66d9ef>tag_name</span>: ${{ github.ref }}
+          <span style=color:#66d9ef>release_name</span>: Release ${{ github.ref }}
+          <span style=color:#66d9ef>draft</span>: <span style=color:#66d9ef>false</span>
+          <span style=color:#66d9ef>prerelease</span>: <span style=color:#66d9ef>false</span>
+</code></pre></div><p>We now add jobs for each supported operating system, which depends on our <em>create-release</em> job by setting the <em>needs:</em> facet to <em>create-release</em>. The following workflow defines the release build for linux:</p><div class=highlight><pre style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-yaml data-lang=yaml>  <span style=color:#66d9ef>perform-release-linux</span>:
+    <span style=color:#66d9ef>needs</span>: create-release
+    <span style=color:#66d9ef>runs-on</span>: ubuntu-latest
+    <span style=color:#66d9ef>steps</span>:
+    - <span style=color:#66d9ef>uses</span>: actions/checkout@v2
+    - <span style=color:#66d9ef>name</span>: Set up JDK <span style=color:#ae81ff>11</span>
+      <span style=color:#66d9ef>uses</span>: actions/setup-java@v1
+      <span style=color:#66d9ef>with</span>:
+        <span style=color:#66d9ef>java-version</span>: <span style=color:#ae81ff>11</span>
+    - <span style=color:#66d9ef>name</span>: Grant execute permission for gradlew
+      <span style=color:#66d9ef>run</span>: chmod +x gradlew
+    - <span style=color:#66d9ef>name</span>: Build native image with Gradle
+      <span style=color:#66d9ef>run</span>: ./gradlew zipExecutable
+    - <span style=color:#66d9ef>name</span>: Upload Release Asset
+      <span style=color:#66d9ef>uses</span>: actions/upload-release-asset@v1
+      <span style=color:#66d9ef>env</span>:
+        <span style=color:#66d9ef>GITHUB_TOKEN</span>: ${{ secrets.GITHUB_TOKEN }}
+      <span style=color:#66d9ef>with</span>:
+        <span style=color:#66d9ef>upload_url</span>: ${{ needs.create-release.outputs.upload_url }}  
+        <span style=color:#66d9ef>asset_path</span>: ./build/dist/cross-compile-demo.zip
+        <span style=color:#66d9ef>asset_name</span>: cross-compile-demo_linux_amd64.zip
+        <span style=color:#66d9ef>asset_content_type</span>: application/zip
+</code></pre></div><p>And this job references the <em>upload_url</em> output from our <em>create-release</em> job with the <code>${{ needs.create-release.outputs.upload_url }}</code> expression.
+You can see the full workflow file here: <a href=https://github.com/katmatt/cross-compile-gh-actions/blob/master/.github/workflows/perform-release.yml>perform-release.yml</a></p><h3 id=issues-with-the-build-on-windows>Issues with the build on windows</h3><p>I initially started with the default java 8 version for the graal build. But I couldn&rsquo;t get this to run on windows because it required the installation of some additional build tools and I wasn&rsquo;t able to set them up correctly. But when I switched to Java 11 then everything worked as smoothly as I hoped for!
+And you still can see my attempts fixing this issue in the commit history: <a href=https://github.com/katmatt/cross-compile-gh-actions/commits/master>commit history</a></p><p>Another unexpected finding was that the workflow can perform the unix command <em>chmod</em> on windows machines! I guess the github windows images are configured with the windows subsystem for linux (WSL) and this makes it possible to <em>chmod</em>.</p><h2 id=conclusion>Conclusion</h2><p>This article showed you how you can leverage github actions to cross-compile your Java program for different target architectures. The presented solution works with an easy setup. But it has a drawback too: Our workflow downloads the GraalVM distribution for each platform on each release. And releasing our simple demo program took already 5 minutes.</p><p>But if you compare this solution with running the cross-compilation manually - across several computers or virtual machines - and if your release frequency is daily or weekly, then this article provides a good enough solution. Our proposed solution could be further improved by using matrix builds or by caching the downloaded GraalVM distribution, so feel free to improve this solution further!</p><p>You can find the source code for this article here: <a href=https://github.com/katmatt/cross-compile-gh-actions>https://github.com/katmatt/cross-compile-gh-actions</a></p></article><section class=post-nav><ul><li><a href=https://katmatt.github.io/posts/html5-boardgame-with-type-script/>HTML 5 based board game with TypeScript <i class="fa fa-chevron-circle-right"></i></a></li></ul></section><section id=utterances></section><script>if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){let s=document.createElement("script");s.setAttribute("repo","katmatt\/katmatt-blogs");s.src="https://utteranc.es/client.js";s.setAttribute("issue-term","pathname");document.getElementById("utterances").innerHTML="";document.getElementById("utterances").appendChild(s);}else{let s=document.createElement("script");s.setAttribute("repo","katmatt\/katmatt-blogs");s.src="https://utteranc.es/client.js";s.setAttribute("issue-term","pathname");document.getElementById("utterances").innerHTML="";document.getElementById("utterances").appendChild(s);}</script></main><footer><h6>|
+Rendered by <a href=https://gohugo.io title=Hugo>Hugo</a> |
+<a href=https://katmatt.github.io/index.xml>Subscribe</a></h6></footer></div><script src=/js/scripts.js></script><script type=application/javascript>var doNotTrack=false;if(!doNotTrack){window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;ga('create','UA-173228040-1','auto');ga('send','pageview');}</script><script async src=https://www.google-analytics.com/analytics.js></script></body></html>

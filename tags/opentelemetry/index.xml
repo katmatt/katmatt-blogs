@@ -1,0 +1,305 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>opentelemetry on katmatt blogs</title><link>https://katmatt.github.io/tags/opentelemetry/</link><description>Recent content in opentelemetry on katmatt blogs</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 26 Sep 2020 12:04:10 +0200</lastBuildDate><atom:link href="https://katmatt.github.io/tags/opentelemetry/index.xml" rel="self" type="application/rss+xml"/><item><title>Full-stack distributed tracing with JavaScript</title><link>https://katmatt.github.io/posts/full-stack-tracing-with-javascript/</link><pubDate>Sat, 26 Sep 2020 12:04:10 +0200</pubDate><guid>https://katmatt.github.io/posts/full-stack-tracing-with-javascript/</guid><description>&lt;p>I&amp;rsquo;m currently reading the book &lt;a href="https://www.oreilly.com/library/view/distributed-tracing-in/9781492056621/">Distributed Tracing in Practice&lt;/a> and really like it. The book provides an example that you can find on the github repository &lt;a href="https://github.com/distributed-tracing-in-practice/microcalc">distributed-tracing-in-practice/microcalc&lt;/a>.&lt;/p>
+&lt;p>After reviewing this example, I saw some room for improvement. First of all, I think the example would be easier to use if it would use just one programming language. Their example currently uses JavaScript for the front-end and Go for the back-end. And I would prefer to be able to start the whole example with just one command and without the need to install multiple other programs. And it would be nice if changing the source code would immediately reload my code.&lt;/p>
+&lt;p>And that&amp;rsquo;s why I decided to create my own example which is based on their example. It&amp;rsquo;s written in JavaScript, uses node for the back-end and docker-compose to run all services together with the UI. And to present this example, let&amp;rsquo;s start with some introduction to the topic.&lt;/p>
+&lt;h1 id="what-is-distributed-tracing">What is distributed tracing?&lt;/h1>
+&lt;p>Distributed tracing allows tracing of the actual calls between components of a distributed system. The example below shows a typical distributed system, which consists of a frontend which typically is either a web site or an application running on a mobile device like a smartphone. And this front-end typically sends requests to an api-gateway which forwards the requests to services that implement the business logic.&lt;/p>
+&lt;p>&lt;img src="distributed-system.svg" alt="Distributed System">&lt;/p>
+&lt;p>The most popular architectural style for distributed systems are microservices and the philosophy behind this style is to break the whole system down into more and smaller services that communicate with each other. This architecture has a lot of advantages, but has of course disadvantages too. One disadvantage is that the increased number of involved services makes it much harder to analyze issues. Especially performance issues are very difficult to analyze in such a highly distributed system. And a system diagram like the above only represents the static connection between the services, but doesn&amp;rsquo;t show how often the services call other services or how long each request takes.&lt;/p>
+&lt;p>And that&amp;rsquo;s where distributed tracing can help. It allows you to view all requests that were sent between the different services and it also provides additional information like the execution time of a single request. And each request can be further traced to the requests that it sent to other services.&lt;/p>
+&lt;h1 id="how-does-it-work">How does it work?&lt;/h1>
+&lt;p>The most influential paper on distributed tracing was released in 2010 by google researchers: &lt;a href="https://research.google/pubs/pub36356/">Dapper, a Large-Scale Distributed Systems Tracing Infrastructure&lt;/a>. And most distributed tracing systems follow the ideas presented in this paper, which introduced and formalized the concept of a trace which consists of spans.&lt;/p>
+&lt;p>A trace consists of a root span, which represents the initial call. And any request sent to another service is captured by a child span. A span captures the start and end times for the request. An instrumented program can programmatically add additional attributes to a span. These attributes are simple key-value maps. Additional events - like internal calls - can be recorded too and these events support attributes too.&lt;/p>
+&lt;p>&lt;img src="span-example.svg" alt="Span Example">&lt;/p>
+&lt;p>Child spans can have their own child spans and the whole trace consists of the root span with the transitive collection of all child spans. An example of a distributed trace of our example system from above is shown in the following diagram:&lt;/p>
+&lt;p>&lt;img src="distributed-trace.svg" alt="Distributed Trace">&lt;/p>
+&lt;p>A distributed tracing system typically consists of instrumentation agents, a trace collector, and a trace front-end. The instrumentation agents add the code required to collect the trace information to each node. The agents retrieve the trace information from incoming requests, add trace information to any outgoing request and send the collected trace information to the trace collector that stores and aggregates the trace data. The trace front-end allows the user to query for the data.&lt;/p>
+&lt;p>&lt;img src="distributed-system-with-trace-collector.svg" alt="Distributed System with Trace Collector">&lt;/p>
+&lt;p>Our example system uses http as transport and this allows the trace instrumentation to retrieve the trace id and the parent span id from incoming http request headers. And the instrumentation then adds the new span id as parent span id together with the trace id to the headers of any outgoing http request. An example of how this propagation of trace ids and span parent ids via http headers works can be seen in the following diagram.&lt;/p>
+&lt;p>&lt;img src="tracing-http-headers.svg" alt="Tracing http header">&lt;/p>
+&lt;p>This example uses simple counters for the trace id and span id, an actual implementation will use globally unique identifiers for the trace id and the span id too. Typically the instrumentation agent samples traces only for a few requests per second and collects multiple trace samples before sending them to the trace collector. And the instrumentation agent can also be applied to the front-end code and this then allows to trace the full-stack of a system.&lt;/p>
+&lt;p>Multiple formats exist that describes how to map the trace and span data to http headers. But the industry seems to adopt the W3C &lt;a href="https://www.w3.org/TR/trace-context/">Trace Context&lt;/a> specification quickly and this standard moved in December 2019 to the &lt;a href="https://www.w3.org/blog/2019/12/trace-context-enters-proposed-recommendation/">proposed recommendation status&lt;/a>.&lt;/p>
+&lt;h1 id="opentelemetry">OpenTelemetry&lt;/h1>
+&lt;p>In the past two competing standards existed for distributed tracing: The &lt;a href="https://opencensus.io/">OpenCensus&lt;/a> project - which originated at google - and the &lt;a href="https://opentracing.io/">OpenTracing&lt;/a> project. Recently both projects have merged and the result is the &lt;a href="https://www.cncf.io/">CNCF&lt;/a> sandbox project &lt;a href="https://opentelemetry.io/">OpenTelemetry&lt;/a>. OpenTelemetry is still quite young and currently in the beta and uses the W3C Trace Context as the default for the encoding of the trace information as http headers.&lt;/p>
+&lt;p>OpenTelemetry is already supported by a lot of companies. It provides open-source instrumentation agents for most popular programming languages, but the current JavaScript version is at the time of writing 0.11.0. This version worked fine for my example and I didn&amp;rsquo;t found any issues. But for production use I would wait for a 1.0 version.&lt;/p>
+&lt;h1 id="trace-collectors">Trace collectors&lt;/h1>
+&lt;p>My example uses the open-source &lt;a href="https://zipkin.io/">zipkin&lt;/a> server as a trace collector because it&amp;rsquo;s very simple to configure and provides a docker image that packages the collector with a web UI. The web UI is quite simple, but provides enough functionality to understand how distributed tracing works in practice.
+And there are other open-source trace collector systems like the CNCF project &lt;a href="https://www.jaegertracing.io/">Jaeger&lt;/a>. And the big three cloud providers also provide tracing collectors as a service. And they either already support OpenTelemetry with open-source exporters or plan to support it soon. The google product is called &lt;a href="https://cloud.google.com/trace">Cloud Trace&lt;/a>, the AWS product is called &lt;a href="https://aws.amazon.com/de/xray/">AWS X-Ray&lt;/a> and the Azure product is called &lt;a href="https://docs.microsoft.com/en-us/azure/azure-monitor/overview">Azure Monitor&lt;/a>. And most application performance monitoring system plan to support OpenTelemetry.&lt;/p>
+&lt;h1 id="the-example-system">The example system&lt;/h1>
+&lt;p>My example system consists of a &lt;em>web-ui&lt;/em> that allows to add or subtract values that the user can enter in an html form and an &lt;em>api-gateway&lt;/em> that forwards the requests. The &lt;em>api-gateway&lt;/em> forwards the calculation depending on the selected operator either to the &lt;em>add-service&lt;/em> or to the &lt;em>subtract-service&lt;/em>. The &lt;em>web-ui&lt;/em> is instrumented with the &lt;em>opentelemetry-web&lt;/em> agent and the server nodes are instrumented with the &lt;em>opentelemetry-node&lt;/em> agent. The trace data is exported from each node with the zipkin exporter and the data is forwarded to a zipkin server. The zipkin server acts as a trace collector and additionally provides a web ui to browse the collected traces. Everything is running in a docker network setup with a docker-compose file. The following diagram shows how the example system is setup:&lt;/p>
+&lt;p>&lt;img src="example-system.svg" alt="Distributed tracing example system">&lt;/p>
+&lt;p>The example can be found at &lt;a href="https://github.com/katmatt/microcalc-javascript-node">katmatt/microcalc-javascript-node&lt;/a>. And a simple &lt;em>docker-compose up&lt;/em> starts all services with one command. The &lt;em>web-ui&lt;/em> can be found at &lt;a href="">http://localhost:8090/&lt;/a> and provides a link to open the zipkin UI. The following image shows an example screenshot of the zipkin UI showing an actual example trace:&lt;/p>
+&lt;p>&lt;img src="zipkin-ui.png" alt="zipkin UI showing an example trace">&lt;/p>
+&lt;p>This example nicely shows that the &lt;em>web-ui&lt;/em> creates the root span, which then gets propgated to the &lt;em>api-gateway&lt;/em> which then forwards in this case the subtract request to the &lt;em>subtract-service&lt;/em>. You can see the start, end time and much more data about each request on the left side view.&lt;/p>
+&lt;h1 id="conclusion">Conclusion&lt;/h1>
+&lt;p>My example shows how you can setup a distributed tracing system with one command thanks to &lt;em>docker-compose&lt;/em>. I really like how &lt;em>docker-compose&lt;/em> enables developers to setup development systems easily on their local machine. And JavaScript as the programming language makes it much easier to change the example. And thus makes it easier to gain some experience with distributed tracing.&lt;/p>
+&lt;p>I hope you like the example too. For me, it was the first step in using distributed tracing and I hope to use it in production soon.&lt;/p></description></item><item><title>HTML 5 based board game with TypeScript</title><link>https://katmatt.github.io/posts/html5-boardgame-with-type-script/</link><pubDate>Thu, 23 Jul 2020 14:04:10 +0200</pubDate><guid>https://katmatt.github.io/posts/html5-boardgame-with-type-script/</guid><description>&lt;p>A long, long time ago (to be precise: in the year 2000 AD) I wrote a C++/KDE version of the boardgame &lt;a href="https://en.wikipedia.org/wiki/Ishido:_The_Way_of_Stones">Ishido&lt;/a> and you can still find my website for this game conserved at the wayback machine: &lt;a href="https://web.archive.org/web/20000917222625/http://www.informatik.uni-oldenburg.de/~km/kishido/">kishido&lt;/a>&lt;/p>
+&lt;p>This little game was even published on CD in a Japanese Linux magazine and I still own the copy they sent to me. Another funny story: In 2006 I was contacted by a programmer who wanted to use my graphics in a &lt;a href="https://en.wikipedia.org/wiki/PalmPilot_Professional">Palm Pilot&lt;/a> version of this game and you can still find it at &lt;a href="https://sourceforge.net/projects/palmishido">https://sourceforge.net/projects/palmishido&lt;/a>. And I&amp;rsquo;m still joking about my &lt;a href="https://en.wikipedia.org/wiki/Programmer_art">&amp;ldquo;programmer artwork&amp;rdquo;&lt;/a>, but I still can&amp;rsquo;t afford a graphic designer for my hobby projects and looks like some people even like my artwork :-)&lt;/p>
+&lt;p>And this leads us to the topic of this blog: I ported this game to HTML5/TypeScript and it was great to see how technology advanced in the last 20 years! And I had a lot of fun too and thought it would be interesting to share my insights with you.&lt;/p>
+&lt;h2 id="setting-the-stage">Setting the stage&lt;/h2>
+&lt;p>I initially considered to port the C++ code to TypeScript, but then I thought it would be more fun to start from scratch. At this stage, I also decided to ditch the old object-oriented model and instead go with the more functional approach.&lt;/p>
+&lt;p>&lt;img src="ishido-board.png" alt="Ishido ported to HTML5">&lt;/p>
+&lt;h2 id="modeling-the-game-and-the-board">Modeling the game and the board&lt;/h2>
+&lt;p>Since I didn&amp;rsquo;t want to use an object-oriented approach, I decided to use tagged unions to model the tiles on the board. And to enforce this idea further, I didn&amp;rsquo;t use the similar &lt;em>interface&lt;/em> construct and instead settled on using the &lt;em>type&lt;/em> construct instead.&lt;/p>
+&lt;p>I started with defining a union &lt;em>Tile&lt;/em> type, which is either an &lt;em>EmptyTile&lt;/em> or a &lt;em>Stone&lt;/em>:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">Tile&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">EmptyTile&lt;/span> &lt;span style="color:#f92672">|&lt;/span> &lt;span style="color:#a6e22e">Stone&lt;/span>
+&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">EmptyTile&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#34;empty&amp;#34;&lt;/span>
+}
+&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">Stone&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#34;stone&amp;#34;&lt;/span>,
+&lt;span style="color:#a6e22e">symbol&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>,
+&lt;span style="color:#a6e22e">color&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>And these two &lt;em>Tile&lt;/em> subtypes have a &lt;em>type&lt;/em> discriminator and this allows the typescript compile to infer the correct type in &lt;em>switch&lt;/em> or &lt;em>if&lt;/em> statements if they check the value of the &lt;em>type&lt;/em> discriminator.&lt;/p>
+&lt;p>And these types then allowed me to model the &lt;em>Board&lt;/em> and the &lt;em>Game&lt;/em> with the following type definition:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">Board&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">background&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>[][]
+&lt;span style="color:#a6e22e">tiles&lt;/span>: &lt;span style="color:#66d9ef">Tile&lt;/span>[][]
+&lt;span style="color:#a6e22e">nextStone?&lt;/span>: &lt;span style="color:#66d9ef">Stone&lt;/span>
+}
+&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">Game&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">board&lt;/span>: &lt;span style="color:#66d9ef">Board&lt;/span>
+&lt;span style="color:#a6e22e">stoneStack&lt;/span>: &lt;span style="color:#66d9ef">Stone&lt;/span>[]
+&lt;span style="color:#a6e22e">validPositions&lt;/span>: &lt;span style="color:#66d9ef">Position2D&lt;/span>[]
+&lt;span style="color:#a6e22e">score&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>
+&lt;span style="color:#a6e22e">fourWays&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>
+&lt;span style="color:#a6e22e">showHint&lt;/span>: &lt;span style="color:#66d9ef">boolean&lt;/span>
+&lt;span style="color:#a6e22e">assets&lt;/span>: &lt;span style="color:#66d9ef">Assets&lt;/span>
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>And as I said earlier, I didn&amp;rsquo;t use any fancy libraries and instead used arrays as stacks. And two-dimensional arrays in column first order to model the board itself.&lt;/p>
+&lt;p>For checking the valid positions for a given stone I again used a tagged union type:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">MatchResult&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">NotMatching&lt;/span> &lt;span style="color:#f92672">|&lt;/span> &lt;span style="color:#a6e22e">Match&lt;/span>
+&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">NotMatching&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#39;NotMatching&amp;#39;&lt;/span>
+}
+&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#a6e22e">Match&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#39;Match&amp;#39;&lt;/span>
+&lt;span style="color:#a6e22e">colorMatches&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>
+&lt;span style="color:#a6e22e">symbolMatches&lt;/span>: &lt;span style="color:#66d9ef">number&lt;/span>
+}
+&lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">match&lt;/span>(&lt;span style="color:#a6e22e">s1&lt;/span>: &lt;span style="color:#66d9ef">Stone&lt;/span>, &lt;span style="color:#a6e22e">s2&lt;/span>: &lt;span style="color:#66d9ef">Tile&lt;/span>)&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#a6e22e">MatchResult&lt;/span> {
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">s2&lt;/span>.&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#f92672">==&lt;/span> &lt;span style="color:#e6db74">&amp;#39;empty&amp;#39;&lt;/span>) {
+&lt;span style="color:#66d9ef">return&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#39;Match&amp;#39;&lt;/span>,
+&lt;span style="color:#a6e22e">colorMatches&lt;/span>: &lt;span style="color:#66d9ef">0&lt;/span>,
+&lt;span style="color:#a6e22e">symbolMatches&lt;/span>: &lt;span style="color:#66d9ef">0&lt;/span>,
+}
+}
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">colorMatch&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">s1&lt;/span>.&lt;span style="color:#a6e22e">color&lt;/span> &lt;span style="color:#f92672">===&lt;/span> &lt;span style="color:#a6e22e">s2&lt;/span>.&lt;span style="color:#a6e22e">color&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">symbolMatch&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">s1&lt;/span>.&lt;span style="color:#a6e22e">symbol&lt;/span> &lt;span style="color:#f92672">===&lt;/span> &lt;span style="color:#a6e22e">s2&lt;/span>.&lt;span style="color:#a6e22e">symbol&lt;/span>
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">colorMatch&lt;/span> &lt;span style="color:#f92672">||&lt;/span> &lt;span style="color:#a6e22e">symbolMatch&lt;/span>) {
+&lt;span style="color:#66d9ef">return&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#39;Match&amp;#39;&lt;/span>,
+&lt;span style="color:#a6e22e">colorMatches&lt;/span>: &lt;span style="color:#66d9ef">colorMatch&lt;/span> &lt;span style="color:#f92672">?&lt;/span> &lt;span style="color:#a6e22e">1&lt;/span> : &lt;span style="color:#66d9ef">0&lt;/span>,
+&lt;span style="color:#a6e22e">symbolMatches&lt;/span>: &lt;span style="color:#66d9ef">symbolMatch&lt;/span> &lt;span style="color:#f92672">?&lt;/span> &lt;span style="color:#a6e22e">1&lt;/span> : &lt;span style="color:#66d9ef">0&lt;/span>,
+}
+}
+&lt;span style="color:#66d9ef">return&lt;/span> {
+&lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#e6db74">&amp;#39;NotMatching&amp;#39;&lt;/span>,
+}
+}
+&lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">getMatchResults&lt;/span>(&lt;span style="color:#a6e22e">board&lt;/span>: &lt;span style="color:#66d9ef">Board&lt;/span>, &lt;span style="color:#a6e22e">position&lt;/span>: &lt;span style="color:#66d9ef">Position2D&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> {&lt;span style="color:#a6e22e">nextStone&lt;/span>, &lt;span style="color:#a6e22e">tiles&lt;/span>} &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">board&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> {&lt;span style="color:#a6e22e">x&lt;/span>, &lt;span style="color:#a6e22e">y&lt;/span>} &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">position&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">matchResults&lt;/span>: &lt;span style="color:#66d9ef">MatchResult&lt;/span>[] &lt;span style="color:#f92672">=&lt;/span> []
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">nextStone&lt;/span>) {
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span>].&lt;span style="color:#a6e22e">type&lt;/span> &lt;span style="color:#f92672">===&lt;/span> &lt;span style="color:#e6db74">&amp;#39;empty&amp;#39;&lt;/span>) {
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">&amp;gt;&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">left&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">-&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span>]
+&lt;span style="color:#a6e22e">matchResults&lt;/span>.&lt;span style="color:#a6e22e">push&lt;/span>(&lt;span style="color:#a6e22e">match&lt;/span>(&lt;span style="color:#a6e22e">nextStone&lt;/span>, &lt;span style="color:#a6e22e">left&lt;/span>))
+}
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">&amp;lt;&lt;/span> &lt;span style="color:#a6e22e">BOARD_WIDTH&lt;/span> &lt;span style="color:#f92672">-&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">right&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">+&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span>]
+&lt;span style="color:#a6e22e">matchResults&lt;/span>.&lt;span style="color:#a6e22e">push&lt;/span>(&lt;span style="color:#a6e22e">match&lt;/span>(&lt;span style="color:#a6e22e">nextStone&lt;/span>, &lt;span style="color:#a6e22e">right&lt;/span>))
+}
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">&amp;gt;&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">top&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">-&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>]
+&lt;span style="color:#a6e22e">matchResults&lt;/span>.&lt;span style="color:#a6e22e">push&lt;/span>(&lt;span style="color:#a6e22e">match&lt;/span>(&lt;span style="color:#a6e22e">nextStone&lt;/span>, &lt;span style="color:#a6e22e">top&lt;/span>))
+}
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">&amp;lt;&lt;/span> &lt;span style="color:#a6e22e">BOARD_HEIGHT&lt;/span> &lt;span style="color:#f92672">-&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">bottom&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">+&lt;/span> &lt;span style="color:#ae81ff">1&lt;/span>]
+&lt;span style="color:#a6e22e">matchResults&lt;/span>.&lt;span style="color:#a6e22e">push&lt;/span>(&lt;span style="color:#a6e22e">match&lt;/span>(&lt;span style="color:#a6e22e">nextStone&lt;/span>, &lt;span style="color:#a6e22e">bottom&lt;/span>))
+}
+}
+}
+&lt;span style="color:#66d9ef">return&lt;/span> &lt;span style="color:#a6e22e">matchResults&lt;/span>
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>And the game then mainly consists of an event handling function which calls functions to change the state of the game and then simply redraws the whole board. And since it&amp;rsquo;s the year 2020 now, no further optimizations were needed to make the game as enjoyable as in 2000!&lt;/p>
+&lt;h2 id="drawing-the-board">Drawing the board&lt;/h2>
+&lt;p>I started by extracting the graphic from the tar archive I found on the wayback machine. As a side note: I created the graphics in 2000 with gimp and I can still successfully open them with the latest gimp version! You can see the game assets here: &lt;a href="https://github.com/katmatt/ishido/tree/master/assets">assets&lt;/a>&lt;/p>
+&lt;p>As you can see there, I created all variations of the stones and variations of the board tiles (with red highlighted versions for giving the player &amp;ldquo;subtle&amp;rdquo; placement hints) in separate files. These images use the png format with 8-bit indexed mode. The png format wasn&amp;rsquo;t supported by most browsers in 2000, but today every browser supports the png format. That means that we can use these images directly by creating an image html element and setting the &lt;em>src&lt;/em> attribute to the file name. And since I like to use the promise based &lt;em>async/await&lt;/em> feature with TypeScript, I ended up with this code for loading the images:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">loadImage&lt;/span>(&lt;span style="color:#a6e22e">src&lt;/span>: &lt;span style="color:#66d9ef">string&lt;/span>)&lt;span style="color:#f92672">:&lt;/span> &lt;span style="color:#a6e22e">Promise&lt;/span>&lt;span style="color:#f92672">&amp;lt;&lt;/span>&lt;span style="color:#a6e22e">HTMLImageElement&lt;/span>&lt;span style="color:#f92672">&amp;gt;&lt;/span> {
+&lt;span style="color:#66d9ef">return&lt;/span> &lt;span style="color:#66d9ef">new&lt;/span> &lt;span style="color:#a6e22e">Promise&lt;/span>((&lt;span style="color:#a6e22e">resolve&lt;/span>, &lt;span style="color:#a6e22e">reject&lt;/span>) &lt;span style="color:#f92672">=&amp;gt;&lt;/span> {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">image&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">new&lt;/span> &lt;span style="color:#a6e22e">Image&lt;/span>()
+&lt;span style="color:#a6e22e">image&lt;/span>.&lt;span style="color:#a6e22e">addEventListener&lt;/span>(&lt;span style="color:#e6db74">&amp;#39;load&amp;#39;&lt;/span>, &lt;span style="color:#a6e22e">_&lt;/span> &lt;span style="color:#f92672">=&amp;gt;&lt;/span> &lt;span style="color:#a6e22e">resolve&lt;/span>(&lt;span style="color:#a6e22e">image&lt;/span>))
+&lt;span style="color:#a6e22e">image&lt;/span>.&lt;span style="color:#a6e22e">addEventListener&lt;/span>(&lt;span style="color:#e6db74">&amp;#39;error&amp;#39;&lt;/span>, &lt;span style="color:#a6e22e">_&lt;/span> &lt;span style="color:#f92672">=&amp;gt;&lt;/span> &lt;span style="color:#a6e22e">reject&lt;/span>(&lt;span style="color:#66d9ef">new&lt;/span> Error(&lt;span style="color:#e6db74">`Failed to load image &lt;/span>&lt;span style="color:#e6db74">${&lt;/span>&lt;span style="color:#a6e22e">src&lt;/span>&lt;span style="color:#e6db74">}&lt;/span>&lt;span style="color:#e6db74">`&lt;/span>)))
+&lt;span style="color:#a6e22e">image&lt;/span>.&lt;span style="color:#a6e22e">src&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">src&lt;/span>
+})
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>This then allowed me to use a canvas html element with a fixed size of the old game resolution of &lt;em>788x528&lt;/em> pixels:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-html" data-lang="html">&lt;span style="color:#75715e">&amp;lt;!DOCTYPE html&amp;gt;&lt;/span>
+&amp;lt;&lt;span style="color:#f92672">header&lt;/span>&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">title&lt;/span>&amp;gt;Ishido&amp;lt;/&lt;span style="color:#f92672">title&lt;/span>&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">meta&lt;/span> &lt;span style="color:#a6e22e">http-equiv&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;Content-Type&amp;#34;&lt;/span> &lt;span style="color:#a6e22e">content&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;text/html; charset=utf-8&amp;#34;&lt;/span> /&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">script&lt;/span> &lt;span style="color:#a6e22e">type&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;text/javascript&amp;#34;&lt;/span> &lt;span style="color:#a6e22e">src&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;index.js&amp;#34;&lt;/span>&amp;gt;&amp;lt;/&lt;span style="color:#f92672">script&lt;/span>&amp;gt;
+&amp;lt;/&lt;span style="color:#f92672">header&lt;/span>&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">body&lt;/span>&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">h1&lt;/span>&amp;gt;Ishido&amp;lt;/&lt;span style="color:#f92672">h1&lt;/span>&amp;gt;
+&amp;lt;&lt;span style="color:#f92672">canvas&lt;/span> &lt;span style="color:#a6e22e">id&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;ishido&amp;#34;&lt;/span> &lt;span style="color:#a6e22e">width&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;788&amp;#34;&lt;/span> &lt;span style="color:#a6e22e">height&lt;/span>&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;528&amp;#34;&lt;/span>&amp;gt;&amp;lt;/&lt;span style="color:#f92672">canvas&lt;/span>&amp;gt;
+&amp;lt;/&lt;span style="color:#f92672">body&lt;/span>&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>This very odd size was a side effect of me using a CRT monitor with a maximum resolution of &lt;em>800x600&lt;/em> at that time. If you then subtract the windows borders and menu size, you end up with that graphic size.&lt;/p>
+&lt;p>And since my plan was to avoid using any additional library, I then started with the following init function:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#a6e22e">async&lt;/span> &lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">initGame() {&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">canvas&lt;/span> &lt;span style="color:#f92672">=&lt;/span> document.&lt;span style="color:#a6e22e">getElementById&lt;/span>(&lt;span style="color:#e6db74">&amp;#39;ishido&amp;#39;&lt;/span>)
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">ctx&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">canvas&lt;/span>.&lt;span style="color:#a6e22e">getContext&lt;/span>(&lt;span style="color:#e6db74">&amp;#39;2d&amp;#39;&lt;/span>)
+&lt;span style="color:#66d9ef">if&lt;/span> (&lt;span style="color:#f92672">!&lt;/span>&lt;span style="color:#a6e22e">ctx&lt;/span>) {
+&lt;span style="color:#a6e22e">alert&lt;/span>(&lt;span style="color:#e6db74">&amp;#34;Your browser isn&amp;#39;t supported by this game!&amp;#34;&lt;/span>)
+&lt;span style="color:#66d9ef">return&lt;/span>
+}
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>When I then started to play around with the &lt;em>ctx&lt;/em> graphics context, Visual Studio Code suggested me to add the following to my &lt;em>tsconfig.json&lt;/em> file:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-json" data-lang="json">{
+&lt;span style="color:#f92672">&amp;#34;compilerOptions&amp;#34;&lt;/span>: {
+&lt;span style="color:#f92672">&amp;#34;lib&amp;#34;&lt;/span>: [
+&lt;span style="color:#e6db74">&amp;#34;dom&amp;#34;&lt;/span>
+]
+}
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>And this then allowed me to leverage the correct dom types and made it much easier to explore the HTML5 graphic context api. For drawing the board I then just had to use the &lt;a href="https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage">drawImage&lt;/a> method on the canvas html element. I then ended up with the following function to draw the board:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-typescript" data-lang="typescript">&lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">drawStone&lt;/span>(&lt;span style="color:#a6e22e">ctx&lt;/span>: &lt;span style="color:#66d9ef">CanvasRenderingContext2D&lt;/span>, &lt;span style="color:#a6e22e">tileset&lt;/span>: &lt;span style="color:#66d9ef">HTMLImageElement&lt;/span>, &lt;span style="color:#a6e22e">stone&lt;/span>: &lt;span style="color:#66d9ef">Stone&lt;/span>, &lt;span style="color:#a6e22e">position&lt;/span>: &lt;span style="color:#66d9ef">Position2D&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> {&lt;span style="color:#a6e22e">color&lt;/span>, &lt;span style="color:#a6e22e">symbol&lt;/span>} &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">stone&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">tileX&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">color&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">tileY&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">symbol&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> {&lt;span style="color:#a6e22e">x&lt;/span>, &lt;span style="color:#a6e22e">y&lt;/span>} &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">position&lt;/span>
+&lt;span style="color:#a6e22e">ctx&lt;/span>.&lt;span style="color:#a6e22e">drawImage&lt;/span>(&lt;span style="color:#a6e22e">tileset&lt;/span>,
+&lt;span style="color:#a6e22e">tileX&lt;/span>, &lt;span style="color:#a6e22e">tileY&lt;/span>, &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>, &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>,
+&lt;span style="color:#a6e22e">x&lt;/span>, &lt;span style="color:#a6e22e">y&lt;/span>, &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>, &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>)
+}
+&lt;span style="color:#66d9ef">function&lt;/span> &lt;span style="color:#a6e22e">draw&lt;/span>(&lt;span style="color:#a6e22e">ctx&lt;/span>: &lt;span style="color:#66d9ef">CanvasRenderingContext2D&lt;/span>, &lt;span style="color:#a6e22e">game&lt;/span>: &lt;span style="color:#66d9ef">Game&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">hintPositions&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">game&lt;/span>.&lt;span style="color:#a6e22e">showHint&lt;/span> &lt;span style="color:#f92672">?&lt;/span> &lt;span style="color:#a6e22e">game&lt;/span>.&lt;span style="color:#a6e22e">validPositions&lt;/span> &lt;span style="color:#f92672">:&lt;/span> []
+&lt;span style="color:#66d9ef">const&lt;/span> {&lt;span style="color:#a6e22e">board&lt;/span>, &lt;span style="color:#a6e22e">assets&lt;/span>} &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">game&lt;/span>
+&lt;span style="color:#66d9ef">for&lt;/span> (&lt;span style="color:#66d9ef">let&lt;/span> &lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span>; &lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">&amp;lt;&lt;/span> &lt;span style="color:#a6e22e">BOARD_WIDTH&lt;/span>; &lt;span style="color:#a6e22e">x&lt;/span>&lt;span style="color:#f92672">++&lt;/span>) {
+&lt;span style="color:#66d9ef">for&lt;/span> (&lt;span style="color:#66d9ef">let&lt;/span> &lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#ae81ff">0&lt;/span>; &lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">&amp;lt;&lt;/span> &lt;span style="color:#a6e22e">BOARD_HEIGHT&lt;/span>; &lt;span style="color:#a6e22e">y&lt;/span>&lt;span style="color:#f92672">++&lt;/span>) {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">tile&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">board&lt;/span>.&lt;span style="color:#a6e22e">tiles&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span>]
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">pos&lt;/span> &lt;span style="color:#f92672">=&lt;/span> {&lt;span style="color:#a6e22e">x&lt;/span>, &lt;span style="color:#a6e22e">y&lt;/span>}
+&lt;span style="color:#66d9ef">switch&lt;/span> (&lt;span style="color:#a6e22e">tile&lt;/span>.&lt;span style="color:#a6e22e">type&lt;/span>) {
+&lt;span style="color:#66d9ef">case&lt;/span> &lt;span style="color:#e6db74">&amp;#39;empty&amp;#39;&lt;/span>&lt;span style="color:#f92672">:&lt;/span> {
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">background&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">board&lt;/span>.&lt;span style="color:#a6e22e">background&lt;/span>[&lt;span style="color:#a6e22e">x&lt;/span>][&lt;span style="color:#a6e22e">y&lt;/span>]
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">hintY&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">hintPositions&lt;/span>.&lt;span style="color:#a6e22e">find&lt;/span>(&lt;span style="color:#a6e22e">equals&lt;/span>(&lt;span style="color:#a6e22e">pos&lt;/span>))
+&lt;span style="color:#f92672">?&lt;/span> &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">2&lt;/span> : &lt;span style="color:#66d9ef">0&lt;/span>
+&lt;span style="color:#66d9ef">const&lt;/span> &lt;span style="color:#a6e22e">tileY&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#a6e22e">isBeyond&lt;/span>(&lt;span style="color:#a6e22e">pos&lt;/span>) &lt;span style="color:#f92672">?&lt;/span> &lt;span style="color:#a6e22e">0&lt;/span> : &lt;span style="color:#66d9ef">TILE_HEIGHT&lt;/span>
+&lt;span style="color:#a6e22e">ctx&lt;/span>.&lt;span style="color:#a6e22e">drawImage&lt;/span>(
+&lt;span style="color:#a6e22e">assets&lt;/span>.&lt;span style="color:#a6e22e">background&lt;/span>,
+&lt;span style="color:#a6e22e">background&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>,
+&lt;span style="color:#a6e22e">hintY&lt;/span> &lt;span style="color:#f92672">+&lt;/span> &lt;span style="color:#a6e22e">tileY&lt;/span>,
+&lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>,
+&lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>,
+&lt;span style="color:#a6e22e">x&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>,
+&lt;span style="color:#a6e22e">y&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>,
+&lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>,
+&lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>
+)
+&lt;span style="color:#66d9ef">break&lt;/span>
+}
+&lt;span style="color:#66d9ef">case&lt;/span> &lt;span style="color:#e6db74">&amp;#39;stone&amp;#39;&lt;/span>&lt;span style="color:#f92672">:&lt;/span> {
+&lt;span style="color:#a6e22e">drawStone&lt;/span>(&lt;span style="color:#a6e22e">ctx&lt;/span>, &lt;span style="color:#a6e22e">assets&lt;/span>.&lt;span style="color:#a6e22e">tileset&lt;/span>, &lt;span style="color:#a6e22e">tile&lt;/span>,
+{&lt;span style="color:#a6e22e">x&lt;/span>: &lt;span style="color:#66d9ef">x&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_WIDTH&lt;/span>, &lt;span style="color:#a6e22e">y&lt;/span>: &lt;span style="color:#66d9ef">y&lt;/span> &lt;span style="color:#f92672">*&lt;/span> &lt;span style="color:#a6e22e">TILE_HEIGHT&lt;/span>})
+&lt;span style="color:#66d9ef">break&lt;/span>
+}
+}
+}
+}
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>This function provides type-safe access to the &lt;em>Stone&lt;/em> properties because the typescript compiler can infer the correct type based on the &lt;em>switch&lt;/em> statement. This makes it quite easy to write this function.&lt;/p>
+&lt;p>But the &lt;em>draw&lt;/em> function is a bit more complicated because the background tiles are initialized with random numbers to give the board more variation. And the game also provides a hint feature, which highlights the valid positions on the board with background tiles highlighted with a red tint.&lt;/p>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>It took me a few evenings to port this old game to run in a web browser. I had a lot of fun writing the code and using typescript made it much easier for me to discover the canvas API. Since I didn&amp;rsquo;t have to care about memory management and didn&amp;rsquo;t split my source code into modules, implementing this game was very quick and fun too. And the code is much smaller than the original C++ source code! And smaller code means that the code is much easier to read. And since the game is so easy and small, I even didn&amp;rsquo;t write any tests for it!&lt;/p>
+&lt;p>That&amp;rsquo;s how most software was written in the early 2000s: No automatic tests and if you were lucky, someone introduced a version management system like &lt;a href="https://en.wikipedia.org/wiki/Concurrent_Versions_System">CVS&lt;/a> to your project. git or github didn&amp;rsquo;t exist at that time! And I was very lucky that I had an &lt;a href="https://en.wikipedia.org/wiki/Extreme_programming">extreme programming&lt;/a> training at my first job in 2001 and since then I&amp;rsquo;m a big advocate of developers writing their tests!&lt;/p>
+&lt;p>You can find the whole source code for this game here: &lt;a href="https://github.com/katmatt/ishido">https://github.com/katmatt/ishido&lt;/a> and the game logic is contained in this file &lt;a href="https://github.com/katmatt/ishido/blob/master/src/index.ts">index.ts&lt;/a>&lt;/p>
+&lt;p>And without further ado, here is the resulting game and I hope you enjoy playing it too!&lt;/p>
+&lt;script type="text/javascript" src="dist/index.js">&lt;/script>
+&lt;p>&lt;canvas id="ishido" width="788" height="528">&lt;/canvas>&lt;/p></description></item><item><title>GraalVM/native-image cross-compilation with github Actions</title><link>https://katmatt.github.io/posts/graalvm-cross-compile-gh-actions/</link><pubDate>Wed, 15 Jul 2020 15:35:10 +0200</pubDate><guid>https://katmatt.github.io/posts/graalvm-cross-compile-gh-actions/</guid><description>&lt;p>GraalVM (&lt;a href="https://www.graalvm.org/">https://www.graalvm.org/&lt;/a>) allows to compile Java programs into native code with the &lt;em>native-image&lt;/em> executable. This gives Java developers new options because you can now release native executable for your users. And that brings Java to the world of easy to install command-line tools, which at the moment is one of the unique selling points of newer programming languages like Go or Rust. Both of these languages have dedicated support for cross-compiling programs/libraries to target architectures different from the host system.&lt;/p>
+&lt;p>But one limitation of &lt;em>native-image&lt;/em> is that it doesn&amp;rsquo;t support cross-compilation out of the box (see open issue: &lt;a href="https://github.com/oracle/graal/issues/407">native-image: Cross compilation support?&lt;/a>). That means that you have to run &lt;em>native-image&lt;/em> on all platforms that your Java program should support.&lt;/p>
+&lt;p>This article will show you how you can use github actions to simplify this task by automating it. Then the only thing you have to do to trigger the release of native excutables of your program is to tag your release and push that tag to github.&lt;/p>
+&lt;h2 id="setup-your-gradle-build">Setup your gradle build&lt;/h2>
+&lt;p>In this article, we will use the popular &lt;a href="https://gradle.org/">gradle&lt;/a> build tool together with the &lt;a href="https://github.com/palantir/gradle-graal">Palantir GraalVM gradle plugin&lt;/a>. This setup will download the GraalVM toolchain, cache it locally and thus makes it very easy to use. This plugin is available from the gradle plugin central and this makes it very easy to integrate it into our &lt;em>gradle.build&lt;/em> file:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-gradle" data-lang="gradle">plugins &lt;span style="color:#f92672">{&lt;/span>
+id &lt;span style="color:#e6db74">&amp;#39;com.palantir.graal&amp;#39;&lt;/span> version &lt;span style="color:#e6db74">&amp;#39;0.7.1&amp;#39;&lt;/span>
+&lt;span style="color:#f92672">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Then you can add the following entries to your modules &lt;em>build.gradle&lt;/em> to configure the &lt;em>nativeImage&lt;/em> gradle task:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-gradle" data-lang="gradle">apply plugin: &lt;span style="color:#e6db74">&amp;#39;com.palantir.graal&amp;#39;&lt;/span>
+graal &lt;span style="color:#f92672">{&lt;/span>
+graalVersion &lt;span style="color:#e6db74">&amp;#39;20.0.0&amp;#39;&lt;/span>
+outputName &lt;span style="color:#e6db74">&amp;#39;cross-compile-demo&amp;#39;&lt;/span>
+mainClass &lt;span style="color:#e6db74">&amp;#39;com.maschinenstuermer.crosscompile.demo.App&amp;#39;&lt;/span>
+javaVersion &lt;span style="color:#e6db74">&amp;#39;11&amp;#39;&lt;/span>
+&lt;span style="color:#f92672">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="build-your-first-native-executable">Build your first native executable&lt;/h2>
+&lt;p>After this setup, building your first native executable is as simple as running &lt;code>./gradlew nativeImage&lt;/code>. This will download the graal toolchain to your computer, execute &lt;em>native-image&lt;/em> and generate the executable to &lt;em>build/graal/cross-compile-demo&lt;/em>.&lt;/p>
+&lt;p>Running this executable then outputs the classical:&lt;/p>
+&lt;pre>&lt;code>Hello world.
+&lt;/code>&lt;/pre>&lt;p>The next step is to archive the executable into a zip file, which we later will upload to the github release. We do this by adding the following task to our &lt;em>build.gradle&lt;/em> file:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-gradle" data-lang="gradle">task &lt;span style="color:#a6e22e">zipExecutable&lt;/span>&lt;span style="color:#f92672">(&lt;/span>type: Zip&lt;span style="color:#f92672">)&lt;/span> &lt;span style="color:#f92672">{&lt;/span>
+dependsOn &lt;span style="color:#e6db74">&amp;#39;nativeImage&amp;#39;&lt;/span>
+archiveFileName &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#e6db74">&amp;#34;cross-compile-demo.zip&amp;#34;&lt;/span>
+destinationDirectory &lt;span style="color:#f92672">=&lt;/span> file&lt;span style="color:#f92672">(&lt;/span>&lt;span style="color:#e6db74">&amp;#34;$buildDir/dist&amp;#34;&lt;/span>&lt;span style="color:#f92672">)&lt;/span>
+from &lt;span style="color:#e6db74">&amp;#34;$buildDir/graal&amp;#34;&lt;/span>
+&lt;span style="color:#f92672">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>With this additional task, we can now build and archive our executable by running &lt;code>./gradlew zipExecutable&lt;/code>. This produces our zip file in the &lt;em>build/dist&lt;/em> folder. You can see the full build file here: &lt;a href="https://github.com/katmatt/cross-compile-gh-actions/blob/master/build.gradle">build.gradle&lt;/a>&lt;/p>
+&lt;h2 id="cross-compiling-with-github-actions">Cross-compiling with Github Actions&lt;/h2>
+&lt;p>Our release process is triggered when a user tags a release and pushes these tags to github. This is accomplished with the following trigger in our workflow file:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#66d9ef">on&lt;/span>:
+&lt;span style="color:#66d9ef">push&lt;/span>:
+&lt;span style="color:#66d9ef">tags&lt;/span>:
+- &lt;span style="color:#e6db74">&amp;#39;v*&amp;#39;&lt;/span> &lt;span style="color:#75715e"># Push events to matching v*, i.e. v1.0, v20.15.10&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Our workflow then creates a github release for this tag and stores the &lt;em>upload_url&lt;/em> variable as an output that our downstream jobs can use to upload their artifacts with the following job definition :&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#66d9ef">jobs&lt;/span>:
+&lt;span style="color:#66d9ef">create-release&lt;/span>:
+&lt;span style="color:#66d9ef">runs-on&lt;/span>: ubuntu-latest
+&lt;span style="color:#66d9ef">outputs&lt;/span>:
+&lt;span style="color:#66d9ef">upload_url&lt;/span>: ${{ steps.create-release.outputs.upload_url }}
+&lt;span style="color:#66d9ef">steps&lt;/span>:
+- &lt;span style="color:#66d9ef">uses&lt;/span>: actions/checkout@v2
+- &lt;span style="color:#66d9ef">name&lt;/span>: Create Release
+&lt;span style="color:#66d9ef">id&lt;/span>: create-release
+&lt;span style="color:#66d9ef">uses&lt;/span>: actions/create-release@v1
+&lt;span style="color:#66d9ef">env&lt;/span>:
+&lt;span style="color:#66d9ef">GITHUB_TOKEN&lt;/span>: ${{ secrets.GITHUB_TOKEN }}
+&lt;span style="color:#66d9ef">with&lt;/span>:
+&lt;span style="color:#66d9ef">tag_name&lt;/span>: ${{ github.ref }}
+&lt;span style="color:#66d9ef">release_name&lt;/span>: Release ${{ github.ref }}
+&lt;span style="color:#66d9ef">draft&lt;/span>: &lt;span style="color:#66d9ef">false&lt;/span>
+&lt;span style="color:#66d9ef">prerelease&lt;/span>: &lt;span style="color:#66d9ef">false&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>We now add jobs for each supported operating system, which depends on our &lt;em>create-release&lt;/em> job by setting the &lt;em>needs:&lt;/em> facet to &lt;em>create-release&lt;/em>. The following workflow defines the release build for linux:&lt;/p>
+&lt;div class="highlight">&lt;pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml"> &lt;span style="color:#66d9ef">perform-release-linux&lt;/span>:
+&lt;span style="color:#66d9ef">needs&lt;/span>: create-release
+&lt;span style="color:#66d9ef">runs-on&lt;/span>: ubuntu-latest
+&lt;span style="color:#66d9ef">steps&lt;/span>:
+- &lt;span style="color:#66d9ef">uses&lt;/span>: actions/checkout@v2
+- &lt;span style="color:#66d9ef">name&lt;/span>: Set up JDK &lt;span style="color:#ae81ff">11&lt;/span>
+&lt;span style="color:#66d9ef">uses&lt;/span>: actions/setup-java@v1
+&lt;span style="color:#66d9ef">with&lt;/span>:
+&lt;span style="color:#66d9ef">java-version&lt;/span>: &lt;span style="color:#ae81ff">11&lt;/span>
+- &lt;span style="color:#66d9ef">name&lt;/span>: Grant execute permission for gradlew
+&lt;span style="color:#66d9ef">run&lt;/span>: chmod +x gradlew
+- &lt;span style="color:#66d9ef">name&lt;/span>: Build native image with Gradle
+&lt;span style="color:#66d9ef">run&lt;/span>: ./gradlew zipExecutable
+- &lt;span style="color:#66d9ef">name&lt;/span>: Upload Release Asset
+&lt;span style="color:#66d9ef">uses&lt;/span>: actions/upload-release-asset@v1
+&lt;span style="color:#66d9ef">env&lt;/span>:
+&lt;span style="color:#66d9ef">GITHUB_TOKEN&lt;/span>: ${{ secrets.GITHUB_TOKEN }}
+&lt;span style="color:#66d9ef">with&lt;/span>:
+&lt;span style="color:#66d9ef">upload_url&lt;/span>: ${{ needs.create-release.outputs.upload_url }}
+&lt;span style="color:#66d9ef">asset_path&lt;/span>: ./build/dist/cross-compile-demo.zip
+&lt;span style="color:#66d9ef">asset_name&lt;/span>: cross-compile-demo_linux_amd64.zip
+&lt;span style="color:#66d9ef">asset_content_type&lt;/span>: application/zip
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>And this job references the &lt;em>upload_url&lt;/em> output from our &lt;em>create-release&lt;/em> job with the &lt;code>${{ needs.create-release.outputs.upload_url }}&lt;/code> expression.
+You can see the full workflow file here: &lt;a href="https://github.com/katmatt/cross-compile-gh-actions/blob/master/.github/workflows/perform-release.yml">perform-release.yml&lt;/a>&lt;/p>
+&lt;h3 id="issues-with-the-build-on-windows">Issues with the build on windows&lt;/h3>
+&lt;p>I initially started with the default java 8 version for the graal build. But I couldn&amp;rsquo;t get this to run on windows because it required the installation of some additional build tools and I wasn&amp;rsquo;t able to set them up correctly. But when I switched to Java 11 then everything worked as smoothly as I hoped for!
+And you still can see my attempts fixing this issue in the commit history: &lt;a href="https://github.com/katmatt/cross-compile-gh-actions/commits/master">commit history&lt;/a>&lt;/p>
+&lt;p>Another unexpected finding was that the workflow can perform the unix command &lt;em>chmod&lt;/em> on windows machines! I guess the github windows images are configured with the windows subsystem for linux (WSL) and this makes it possible to &lt;em>chmod&lt;/em>.&lt;/p>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>This article showed you how you can leverage github actions to cross-compile your Java program for different target architectures. The presented solution works with an easy setup. But it has a drawback too: Our workflow downloads the GraalVM distribution for each platform on each release. And releasing our simple demo program took already 5 minutes.&lt;/p>
+&lt;p>But if you compare this solution with running the cross-compilation manually - across several computers or virtual machines - and if your release frequency is daily or weekly, then this article provides a good enough solution. Our proposed solution could be further improved by using matrix builds or by caching the downloaded GraalVM distribution, so feel free to improve this solution further!&lt;/p>
+&lt;p>You can find the source code for this article here: &lt;a href="https://github.com/katmatt/cross-compile-gh-actions">https://github.com/katmatt/cross-compile-gh-actions&lt;/a>&lt;/p></description></item></channel></rss>
