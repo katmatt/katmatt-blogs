@@ -4,7 +4,7 @@ date: 2020-10-31T15:35:10+02:00
 categories: [programming]
 tags: [cloud,development-environment]
 description: how to setup a new gitpod disposable development environment for running a hugo powered blog
-draft: true
+draft: false
 ---
 
 This blog post is completely written in a web browser running [gitpod](http://gitpod.io), which allows you to setup your 
