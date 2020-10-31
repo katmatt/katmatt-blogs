@@ -10,7 +10,7 @@ This feels a bit like in the movie &lt;a href="https://en.wikipedia.org/wiki/Inc
 I still have to get my head around it and especially working with an editor/IDE running in my web browser still feels a bit strange to me.&lt;/p>
 &lt;h1 id="how-does-it-work">How does it work?&lt;/h1>
 &lt;p>You can open up any project that is hosted either on &lt;a href="https://about.gitlab.com/">gitlab&lt;/a>, &lt;a href="http://github.com">github&lt;/a> or &lt;a href="https://bitbucket.org/">bitbucket&lt;/a>
-by adding the repository url to the following gitpod url &lt;code>http://gitpod/#&amp;lt;YOUR_GIT_REPO_URL&amp;gt;&lt;/code>.&lt;/p>
+by adding the repository url to the following gitpod url &lt;code>https://gitpod.io/#&amp;lt;YOUR_GIT_REPO_URL&amp;gt;&lt;/code>.&lt;/p>
 &lt;p>And that&amp;rsquo;s just the beginning: If you use this link for the first time, gitpod will open a wizard that helps you to setup your development environment. When you used the link to my blogs gitpod development environment, then gitpod already started a development environment for you that contains everything to write a blog post.&lt;/p>
 &lt;h1 id="what-is-a-development-environment">What is a development environment?&lt;/h1>
 &lt;p>I normally write my blog post on my laptop that runs ubuntu linux. I use hugo to generate my
