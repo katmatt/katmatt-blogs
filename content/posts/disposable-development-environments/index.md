@@ -22,7 +22,7 @@ I still have to get my head around it and especially working with an editor/IDE 
 # How does it work?
 
 You can open up any project that is hosted either on [gitlab](https://about.gitlab.com/), [github](http://github.com) or [bitbucket](https://bitbucket.org/)
-by adding the repository url to the following gitpod url `http://gitpod/#<YOUR_GIT_REPO_URL>`. 
+by adding the repository url to the following gitpod url `https://gitpod.io/#<YOUR_GIT_REPO_URL>`. 
 
 And that's just the beginning: If you use this link for the first time, gitpod will open a wizard that helps you to setup your development environment. When you used the link to my blogs gitpod development environment, then gitpod already started a development environment for you that contains everything to write a blog post.
 
