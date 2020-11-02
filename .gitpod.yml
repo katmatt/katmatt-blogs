@@ -1,3 +1,5 @@
-image: klakegg/hugo:0.68.3-ext-alpine
+image:
+  file: .gitpod.Dockerfile
+  
 tasks:
   - command: hugo server -D --baseUrl $(gp url 1313) --liveReloadPort=443 --appendPort=false
