@@ -5,4 +5,6 @@ RUN addgroup -g 1000 hugo \
 
 USER hugo
 
+ENV HOME="/home/gitpod"
+
 ENTRYPOINT ["hugo"]
