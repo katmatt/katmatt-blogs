@@ -1,10 +1,7 @@
-FROM klakegg/hugo:0.68.3-ext-alpine
+FROM gitpod/workspace-full
 
-RUN addgroup -g 1000 hugo \
-    && adduser -u 1000 -G hugo -s /bin/sh -D hugo 
+USER root
 
-USER hugo
+RUN apt-get install -yq hugo 
 
-ENV HOME="/home/gitpod"
-
-ENTRYPOINT ["hugo"]
+USER gitpod
